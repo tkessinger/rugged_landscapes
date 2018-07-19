@@ -16,7 +16,7 @@ module PopSim
 export evolve!
 export get_frequencies
 export simple_forward_population, simple_population, ochs_desai_population
-export fitness_ridge_population, fitness_ridge_population_mod
+export fitness_ridge_population, fitness_ridge_population_mod, hoc_population
 
 using Distributions, Combinatorics
 
@@ -38,6 +38,8 @@ struct Clone
     Clone(n,genotype,history) = new(n,genotype,history)
 end
 
+
+
 struct Hypercube_Landscape
     # INCOMPLETE
     # type for storing fitness function and mutation matrix
@@ -55,6 +57,8 @@ struct Hypercube_Landscape
     Hypercube_Landscape(fitnesses,μmatrix) = new(fitnesses, μmatrix, sum(μmatrix,2))
 end
 
+
+
 struct Landscape
     # type for storing fitness function and mutation matrix
     # i will probably write a function to allow explicit genotypes to be stored, too
@@ -63,8 +67,14 @@ struct Landscape
     μmatrix::Array{Float64,2}
     μsum::Array{Float64,2}
 
+    # μsum[i] is just the total mutation flux out of state i
+    # this avoids the need to repeatedly compute the sum
+
+    # constructor
     Landscape(fitnesses,μmatrix) = new(fitnesses, μmatrix, sum(μmatrix,2))
 end
+
+
 
 mutable struct Population
     # type for storing both the population itself (clone list) and associated parameters
@@ -73,70 +83,149 @@ mutable struct Population
     clones::Array{Clone,1}
     generation::Int64
 
-    # constructors
+    # constructor
     Population(K,landscape,clones) = new(K,landscape,clones,0)
+    Population(K,landscape) = new(K,landscape,Clone[Clone(K,1)],0)
 end
 
-function single_jumps(numloci::Int64, numstates::Int64)
-    # produces a list of all allowable single jump lengths,
-    # for a given number of loci and alphabet length
-    # e.g.: 2 loci, 2 states - single jumps are from 1 to 2 or 3,
-    # or from 2 or 3 to 4:
-    # allowable single jump sizes are 1 or 2.
-    # this is currently broken insofar as we do not "remember"
-    # which loci have already been "flipped".
-    # see comment under hypercube_population.
 
-    singlejumps = Int64[]
-    for n in 0:numstates-2;
-        for x in 1:numloci;
-            push!(singlejumps,x*numstates^n)
+
+function genotype_mapping(genotype::Int64, numloci::Int64, numstates::Int64)
+    # maps a genotype number to an array containing the actual state of each locus
+    genotype_list = Int64[]
+    genotype -= 1
+    for i in reverse(0:numloci-1);
+        push!(genotype_list, div(genotype,numstates^i))
+        genotype = genotype%(numstates^i)
+    end
+    return genotype_list
+end
+
+
+
+function greater_than_zero_condition(array1::Array{Int64}, array2::Array{Int64})
+    # ensures that, anywhere array1 is nonzero, array2 is also nonzero
+    conditionmet = true
+    for (xi, x) in enumerate(array1);
+        if array1[xi] != 0 && array2[xi] == 0
+            conditionmet = false
         end
     end
-    return singlejumps
+    return conditionmet
 end
 
-function allowed_jumps(numloci::Int64, numstates::Int64)
-    # produces a list of all allowable jumps of any size,
-    # for each permitted size,
-    # for a given number of loci and alphabet length
-    singlejumps = single_jumps(numloci,numstates)
-    jumps = [[sum(x) for x in combinations(singlejumps,n)] for n in 1:numloci]
-    return jumps
+
+
+function hoc_population(K::Int64, numloci::Int64, numstates::Int64, μ::Float64)
+    fitnesses = hoc_fitnesses(numloci, numstates)
+    μmatrix = hypercube_mutations(fitnesses, numloci, numstates,μ)
+    landscape = Landscape(fitnesses,μmatrix)
+    population = Population(K,landscape)
+    return population
 end
 
-function genotype_mapping(numloci::Int64, numstates::Int64)
+
+
+function hoc_fitnesses(numloci::Int64, numstates::Int64, steepness::Float64; α::Float64=0.0, first_constrained=true, final_highest=false)
+    # generates random fitness values for the "house of cards" landscape model
+    # α allows the "alpha-constrained" house of cards to be used,
+    # where the first fitness is set to α
+    # the last genotype fitness can be set to 1 with final_highest
+    # setting first_constrained to false means the first fitness will be random
+
+    # to do: add a function to allow every all-nonzero genotype to be a peak
+    # i don't think this is necessary, but it might be a good idea
+
+    numgenotypes = numstates^numloci
+
+    fitnesses = Float64[]
+    push!(fitnesses, first_constrained*α + (1-first_constrained)*rand())
+    [push!(fitnesses, rand()) for x in 2:numgenotypes-1]
+    push!(fitnesses, final_highest + (1-final_highest)*rand())
+
+    fitnesses *= steepness
+
+    return fitnesses
+end
+
+
+function rmf_fitnesses(numloci::Int64, numstates::Int64, θ::Float64, steepness::Float64)
+
+    numgenotypes = numstates^numloci
+    fitnesses = Float64[]
+    norm = Normal(0,1)
+    for x in 1:numgenotypes;
+        dist = hamming_distance(genotype_mapping(x,numloci,numstates))
+        rn = rand(norm)
+        fit = θ*dist+rn
+        push!(fitnesses,fit)
+        println("$x, $dist, $θ, $rn,$fit")
+    end
+    println(fitnesses)
+    fitnesses *= steepness
+    return fitnesses
 
 end
 
-function hypercube_population(K::Int64, numloci::Int64, numstates::Int64, μ::Float64)
-    # simple function for generating a population with a "hypercube" fitness landscape
-    # fitnesses are currently left empty, but the mutation rate matrix is populated
+
+function hamming_distance(genotype1::Array{Int64}, genotype2::Array{Int64})
+    # gives the Hamming distance between two genotypes
+    return sum([genotype1[x] != genotype2[x] for x in 1:length(genotype1)])
+end
+
+function hamming_distance(genotype1::Array{Int64})
+    # gives the Hamming distance between one genotype and the wild type (all zeros)
+    return sum([genotype1[x] != 0 for x in 1:length(genotype1)])
+end
+
+
+function hypercube_mutations(fitnesses::Array{Float64}, numloci::Int64, numstates::Int64, μ::Float64;
+    disallow_back::Bool=false, absorbing::Bool=true)
+    # simple function for generating a "hypercube" mutation model
     # this can probably be typed/generalized: consider Hypercube_Landscape
     # currently this only works for 2 states per locus (numstates = 2)
     # we will generalize this later
-    # this still needs to be debugged: the correct implementation is likely to be uglier
-    # see note below
+
+    # disallow_back: forbid mutations back to state 0
+    # absorbing: forbid mutations out of the max fitness state
 
     numgenotypes = numstates^numloci
-    fitnesses = zeros(numgenotypes)
     μmatrix = zeros(numgenotypes, numgenotypes)
 
     jumps = allowed_jumps(numloci, numstates)
 
-    # fill in the mutation matrix
-    # this is the tricky part.
-    # we have a list of permitted jump sizes:
-    # if n loci need to be "flipped" during a particular jump, then the rate needs to
-    # be set to μ^n.
+    genotypelist = [genotype_mapping(n, numloci, numstates) for n in 1:numgenotypes]
 
-    # first loop ends at numgenotypes-1 because the end state is absorbing
-    for (fi, from_genotype) in enumerate(1:numgenotypes-1);
-        # second loop begins at from_genotype+1 because a state never mutates to itself
-        for (ti, to_genotype) in enumerate(from_genotype+1:numgenotypes);
-            for n in 1:numloci;
-                if (to_genotype - from_genotype) in jumps[n]
-                    μmatrix[from_genotype,to_genotype] = μ^n
+    # figure out which loci are maximum fitness
+    # if "absorbing" is on, we will prevent mutations out of the max fitness genotype
+
+    if absorbing
+        maxfit = maximum(fitnesses)
+        maxlocs = find(x->x==maxfit,fitnesses)
+    end
+
+    # fill in the mutation matrix
+    # if n loci need to be "flipped" during a particular jump,
+    # then the rate needs to be set to μ^n
+    # currently only 0 to non-0 flips are allowed
+
+    for (fi, from_genotype) in enumerate(1:numgenotypes);
+        # if the genotype is max fitness and absorbing is on, prevent out-mutations
+        if absorbing && fi in maxlocs
+            μmatrix[from_genotype,:] = 0
+        # otherwise, proceed as normal
+        else
+            from_list = genotypelist[from_genotype]
+            for (ti, to_genotype) in enumerate(1:numgenotypes);
+                to_list = genotypelist[to_genotype]
+                # if disallow_back: disallow jumps from, e.g., 01 to 10, but allow jumps from 01 to 02
+                # essentially, jumps between nonzero states at each locus are allowed
+                # mutation rate from a genotype to itself is of course zero
+                if (greater_than_zero_condition(from_list, to_list) && from_list != to_list) || !disallow_back
+                    boolsum = sum([from_list[x] != to_list[x] for x in 1:numloci])
+                    if boolsum > 0
+                        μmatrix[from_genotype, to_genotype] = μ^boolsum
+                    end
                 end
             end
         end
@@ -145,48 +234,15 @@ function hypercube_population(K::Int64, numloci::Int64, numstates::Int64, μ::Fl
     # note that if we wanted to allow back mutations, we could just transpose the mutation matrix
     # assuming, of course, that the rates are symmetric
 
-    landscape = Landscape(fitnesses,μmatrix)
+    #landscape = Landscape(fitnesses,μmatrix)
 
-    clones = Clone[Clone(K,1)]
+    #clones = Clone[Clone(K,1)]
 
-    return Population(K, landscape, clones)
+    #return Population(K, landscape, clones)
+    return μmatrix
 end
 
 function fitness_ridge_population(K::Int64, μlist::Array{Float64,1}, slist::Array{Float64,1}, ridgelength::Int64)
-    # generates a "ridge competition" landscape
-    # by convention μ and s should be as follows:
-    # 1 ridge mutation rate, also height of ridge (s)
-    # 2 valley mutation rate, also depth of valley (δ)
-    # intermediate steps across the ridge will be set to s/ridgelength, times the step number
-    # note that ridgelength does not include the wild type--the "real" length is ridgelength+1
-    # ridgelength is more like the number of edges, not vertices
-    # this is a "forward" model only: back mutations are disallowed
-
-    ridge_fitnesses = Float64[x*slist[1]/ridgelength for x in 1:ridgelength]
-    valley_fitnesses = Float64[slist[2]]
-    fitnesses = vcat(Float64[0.0], ridge_fitnesses, valley_fitnesses)
-    μmatrix = zeros(ridgelength+2,ridgelength+2)
-
-    # this loop fills in the mutation matrix and allows for multiple mutations to occur
-    # the rate from x to x+n should be μ^n
-    # there should be ridgelength-n+1 such jumps
-    for n in 1:ridgelength;
-        [μmatrix[x,x+n] = μlist[1]^n for x in 1:ridgelength-n+1]
-    end
-
-    # set the valley crossing mutation rates
-    μmatrix[1,ridgelength+2] = μlist[2]
-    μmatrix[ridgelength+2,ridgelength+1] = μlist[2]
-    # allow for a double mutation
-    μmatrix[1,ridgelength+1] += μlist[2]^2
-    landscape = Landscape(fitnesses,μmatrix)
-    clones = Clone[Clone(K,1)]
-
-    return Population(K, landscape, clones)
-
-end
-
-function fitness_ridge_population_mod(K::Int64, μlist::Array{Float64,1}, slist::Array{Float64,1}, ridgelength::Int64)
     # generates a "ridge competition" landscape
     # by convention μ and s should be as follows:
     # 1 ridge mutation rate, also height of ridge (s)
@@ -214,9 +270,8 @@ function fitness_ridge_population_mod(K::Int64, μlist::Array{Float64,1}, slist:
     # allow for a double mutation
     μmatrix[1,ridgelength+3] = μlist[2]^2
     landscape = Landscape(fitnesses,μmatrix)
-    clones = Clone[Clone(K,1)]
 
-    return Population(K, landscape, clones)
+    return Population(K, landscape)
 end
 
 
@@ -231,9 +286,8 @@ function ochs_desai_population(K::Int64, μlist::Array{Float64,1}, slist::Array{
     μmatrix = Float64[0 μlist[1] μlist[2] μlist[2]*μlist[3]; 0 0 0 0; 0 0 0 μlist[3]; 0 0 0 0]
 
     landscape = Landscape(fitnesses,μmatrix)
-    clones = Clone[Clone(K,1)]
 
-    return Population(K, landscape, clones)
+    return Population(K, landscape)
 
 end
 
@@ -245,8 +299,8 @@ function simple_forward_population(K::Int64, μrate::Float64)
     μmatrix = [0 μrate μrate μrate^2; 0 0 0 μrate; 0 0 0 μrate; 0 0 0 0]
 
     landscape = Landscape(fitnesses,μmatrix)
-    clones = Clone[Clone(K,1)]
-    return Population(K, landscape, clones)
+
+    return Population(K, landscape)
 end
 
 function simple_population(K::Int64, μrate::Float64)

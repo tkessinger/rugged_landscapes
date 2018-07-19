@@ -50,7 +50,7 @@ end
 println("running $numtrials simulations:")
 
 for trial in range(1,numtrials);
-    pop = fitness_ridge_population_mod(K, μlist, slist, 2)
+    pop = fitness_ridge_population(K, μlist, slist, 2)
     push!(results,ridge_valley_ensemble(pop))
     println(trial)
 end
