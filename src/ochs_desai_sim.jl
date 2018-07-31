@@ -7,7 +7,7 @@
 ## competition between a simple selective sweep and crossing a fitness valley.
 
 # tell Julia where the module is located
-include("pop_sim.jl")
+# include("pop_sim.jl")
 using Distributions, PopSim, ArgParse, JLD
 
 # arguments (with default values):
@@ -18,12 +18,6 @@ using Distributions, PopSim, ArgParse, JLD
 # 2 i -- rate from wild type to valley
 # 3 v -- rate from valley to complex adaptation
 # genotype 2 is the simple adaptation and 4 is the complex one
-
-struct OchsDesaiParams
-    K::Int64
-    slist::Array{Float64,1}
-    μlist::Array{Float64,1}
-end
 
 function ochs_desai_ensemble(pop)
     # quickly simulates an Ochs-Desai population
@@ -50,9 +44,12 @@ function main(args)
     s = ArgParseSettings(description = "Example 1 for argparse.jl: minimal usage.")
 
     @add_arg_table s begin
+        "--job_name"
+            arg_type=AbstractString
+            default = "test"
         "--K"   # carrying capacity
-            arg_type=Int64
-            default = 100
+            arg_type=Float64
+            default = 100.0
         "--s_u"   # list of selection coefficients
             arg_type=Float64
             default = 0.05
@@ -81,7 +78,7 @@ function main(args)
 
     parsed_args = parse_args(s) # the result is a Dict{String,Any}
 
-    K = parsed_args["K"]
+    K = floor.(Int64,parsed_args["K"])
     slist = [parsed_args["s_u"], parsed_args["s_i"], parsed_args["s_v"]]
     μlist = [parsed_args["u_u"], parsed_args["u_i"], parsed_args["u_v"]]
 
@@ -96,7 +93,9 @@ function main(args)
     # 2 i -- rate from wild type to valley
     # 3 v -- rate from valley to complex adaptation
 
-    println("running $numtrials simulations:")
+    #println("$parsed_args")
+
+    #println("running $numtrials simulations:")
 
     for trial in range(1,numtrials);
         pop = ochs_desai_population(K, μlist, slist)
@@ -108,7 +107,7 @@ function main(args)
     #println(mean(results))
 
     file = ismatch(r"\.jld", outfile) ? outfile : outfile*".jld"
-    save(file, "params", params, "results", mean(results))
+    save("output/ochs_desai_sims/$file", "params", params, "results", mean(results))
 
 end
 
