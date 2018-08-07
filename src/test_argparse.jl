@@ -6,8 +6,6 @@
 ## Simulate a series of populations as in Ochs and Desai (2015):
 ## competition between a simple selective sweep and crossing a fitness valley.
 
-# tell Julia where the module is located
-include("pop_sim.jl")
 using Distributions, PopSim, ArgParse
 
 function main(args)

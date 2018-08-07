@@ -8,21 +8,26 @@
 
 using JLD
 
-pars = ["K", "s_u", "s_i", "s_v", "u_u", "u_i", "u_v"]
-Klist = floor.(Int64,collect(logspace(2,6,100)))
-sulist = [.006,.012,.025,.051]
-parvals = [Klist, sulist, [0.0], [0.07], [5e-6], [5e-5], [5e-5]]
+pars = ["NGamma", "s_u", "s_v", "u", "delta"]
+#NGammalist = collect(linspace(.01,.15,8))
+#sulist = 5.0*collect(logspace(-4,-2,10))
+NGammalist = collect(linspace(.01,.15,3))
+sulist = 5.0*collect(logspace(-4,-2,3))
+svlist = [0.05,0.01]
+ulist = [1e-5,1e-6]
+deltalist = ["low", "high"]
+parvals = [NGammalist, sulist, svlist, ulist, deltalist]
 # take the Cartesian product of all parameter combinations
 parsets = collect(Base.product(parvals...))
 numtrials = 1000
 
 nsets = length(parsets)
 
-basename = "ochs_desai_sims"
+basename = "ochs_desai_sims_2"
 
 for p in 1:nsets
 
-    simstr = "src/ochs_desai_sim.jl"
+    simstr = "src/ochs_desai_sim_2.jl"
 
     # create filname base from basename and run number
     numstr = lpad(string(p), length(string(nsets)), "0")

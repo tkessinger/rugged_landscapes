@@ -6,14 +6,9 @@
 ## Simulate competition between a ridge-traversing and valley-crossing
 ## path to a particular complex adaptation.
 
-# tell Julia where the module is located
-include("pop_sim.jl")
 using Distributions, PopSim
 
 K = 100000 # carrying capacity
-
-# note that we are using fitness_ridge_population_mod in pop_sim
-# this has slightly different behavior from vanilla fitness_ridge_population
 slist = Float64[0.1,-0.01]
 μlist = Float64[10.0^-3,10.0^-2]
 ridgelength = 2
@@ -27,7 +22,7 @@ numtrials = 100
 
 results = []
 
-function ridge_valley_ensemble(pop)
+function ridge_valley_ensemble(pop::Population)
     # simulates a ridge/valley crossing competition
     # returns 0 if the ridge was crossed, 1 if the valley was crossed, and 2 if indeterminate
     freqs = get_frequencies(pop)
@@ -37,6 +32,7 @@ function ridge_valley_ensemble(pop)
         freqs = get_frequencies(pop)
     end
     if freqs[ridgelength+1] == 1
+        # if the ridge was traversed
         return 0
     elseif freqs[ridgelength+3] == 1
         # if the valley was crossed

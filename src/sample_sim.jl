@@ -6,7 +6,6 @@
 ## Basic implementation of pop_sim
 
 # tell Julia where the module is located
-include("pop_sim.jl")
 using Distributions, PopSim
 
 K = 10000 # carrying capacity

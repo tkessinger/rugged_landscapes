@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 
-## pop_sim.jl
+## PopSim.jl
 ##
 ## Author: Taylor Kessinger <taylor.kessinger@uky.edu>
 ## Basic simulation module on rugged fitness landscapes
@@ -13,12 +13,12 @@
 ## map genotype number to string of loci values
 
 module PopSim
-export evolve!
+export evolve!, evolve_until_fixation!
 export get_frequencies
 export simple_forward_population, simple_population, ochs_desai_population
-export fitness_ridge_population, fitness_ridge_population_mod, hoc_population
-
-export OchsDesaiParams
+export fitness_ridge_population, hoc_population
+export parse_history
+export Population, OchsDesaiParams
 
 using Distributions, Combinatorics
 
@@ -77,6 +77,11 @@ struct Landscape
 end
 
 struct OchsDesaiParams
+    # a holder for Ochs-Desai simulation parameters
+    # s and μ are organized as follows:
+    # 1 u - fitness advantage of simple mutant
+    # 2 i - valley depth
+    # 3 v - fitness advantage of complex adaptation
     K::Int64
     slist::Array{Float64,1}
     μlist::Array{Float64,1}
@@ -108,7 +113,6 @@ function genotype_mapping(genotype::Int64, numloci::Int64, numstates::Int64)
 end
 
 
-
 function greater_than_zero_condition(array1::Array{Int64}, array2::Array{Int64})
     # ensures that, anywhere array1 is nonzero, array2 is also nonzero
     conditionmet = true
@@ -120,10 +124,75 @@ function greater_than_zero_condition(array1::Array{Int64}, array2::Array{Int64})
     return conditionmet
 end
 
+function evolve_until_fixation!(population::Population)
+    # evolve a population until it reaches the max fitness state
+    # this is carefully written to allow for multiple states to be max fitness
+
+    # figure out which states correspond to max fitness
+    permitted_states = Int64[]
+    cur_max = 0
+    for (fi, fitness) in enumerate(population.landscape.fitnesses)
+        if fitness > cur_max
+            cur_max = fitness
+            empty!(permitted_states)
+            push!(permitted_states, fi)
+        elseif fitness == cur_max
+            push!(permitted_states, fi)
+        end
+    end
+
+    # evolve until the entire population is in one of the permitted states
+    while sum(get_frequencies(population)[permitted_states]) != 1
+        evolve!(population)
+    end
+end
+
+function evolve_until_fixation!(population::Population, permitted_states::Array{Int64})
+    # evolve a population until it reaches one of a set of pre-specified states
+    # slightly obsoleted by the above method
+
+    # evolve until the entire population is in one of the permitted states
+    while sum(get_frequencies(population)[permitted_states]) != 1
+        evolve!(population)
+        print(get_frequencies(population)[permitted_states])
+    end
+
+end
+
+function parse_history(population::Population)
+
+    path_summary = Dict()
+
+    valleys = 0.0
+    ridges = 0.0
+
+    N = sum(x.n for x in population.clones)
+
+    for clone in population.clones
+        trajectory = [x[1] for x in clone.history]
+        if issorted([population.landscape.fitnesses[x] for x in trajectory])
+            ridges += 1.0*clone.n/N
+        else
+            valleys += 1.0*clone.n/N
+        end
+        if trajectory in keys(path_summary)
+            path_summary[trajectory] += 1.0*clone.n/N
+        else
+            path_summary[trajectory] = 1.0*clone.n/N
+        end
+
+    end
+
+    return path_summary, valleys, ridges
+
+end
 
 
-function hoc_population(K::Int64, numloci::Int64, numstates::Int64, μ::Float64)
-    fitnesses = hoc_fitnesses(numloci, numstates)
+
+function hoc_population(K::Int64, numloci::Int64, numstates::Int64, μ::Float64, steepness::Float64)
+    # constructs an α-HoC population
+
+    fitnesses = hoc_fitnesses(numloci, numstates, steepness)
     μmatrix = hypercube_mutations(fitnesses, numloci, numstates,μ)
     landscape = Landscape(fitnesses,μmatrix)
     population = Population(K,landscape)
@@ -132,7 +201,7 @@ end
 
 
 
-function hoc_fitnesses(numloci::Int64, numstates::Int64, steepness::Float64; α::Float64=0.0, first_constrained=true, final_highest=false)
+function hoc_fitnesses(numloci::Int64, numstates::Int64, steepness::Float64; α::Float64=0.0, first_constrained::Bool=true, final_highest::Bool=true)
     # generates random fitness values for the "house of cards" landscape model
     # α allows the "alpha-constrained" house of cards to be used,
     # where the first fitness is set to α
@@ -147,8 +216,8 @@ function hoc_fitnesses(numloci::Int64, numstates::Int64, steepness::Float64; α:
     fitnesses = Float64[]
     push!(fitnesses, first_constrained*α + (1-first_constrained)*rand())
     [push!(fitnesses, rand()) for x in 2:numgenotypes-1]
-    push!(fitnesses, final_highest + (1-final_highest)*rand())
-
+    #push!(fitnesses, final_highest + (1-final_highest)*rand())
+    push!(fitnesses, final_highest)
     fitnesses *= steepness
 
     return fitnesses
@@ -178,7 +247,6 @@ function hamming_distance(genotype1::Array{Int64}, genotype2::Array{Int64})
     # gives the Hamming distance between two genotypes
     return sum([genotype1[x] != genotype2[x] for x in 1:length(genotype1)])
 end
-
 function hamming_distance(genotype1::Array{Int64})
     # gives the Hamming distance between one genotype and the wild type (all zeros)
     return sum([genotype1[x] != 0 for x in 1:length(genotype1)])
@@ -197,8 +265,6 @@ function hypercube_mutations(fitnesses::Array{Float64}, numloci::Int64, numstate
 
     numgenotypes = numstates^numloci
     μmatrix = zeros(numgenotypes, numgenotypes)
-
-    jumps = allowed_jumps(numloci, numstates)
 
     genotypelist = [genotype_mapping(n, numloci, numstates) for n in 1:numgenotypes]
 
@@ -257,7 +323,6 @@ function fitness_ridge_population(K::Int64, μlist::Array{Float64,1}, slist::Arr
     # note that ridgelength does not include the wild type--the "real" length is ridgelength+1
     # ridgelength is more like the number of edges, not vertices
     # this is a "forward" model only: back mutations are disallowed
-    # this may be a smarter implementation than fitness_ridge_population
     ridge_fitnesses = Float64[x*slist[1]/ridgelength for x in 1:ridgelength]
     valley_fitnesses = Float64[slist[2]]
     fitnesses = vcat(Float64[0.0], ridge_fitnesses, valley_fitnesses, slist[1])
@@ -346,9 +411,12 @@ function selection!(population::Population)
     # poisson offspring number distribution dependent on K and the fitness
     # the K/N term keeps the population size around K
     for (cli, clone) in enumerate(population.clones);
+        #if clone.n > 0
         offspring_dist = Poisson(clone.n*(1+population.landscape.fitnesses[clone.genotype]-mean_fitness)*population.K/N)
         num_offspring = rand(offspring_dist)
-        #clone.n = num_offspring
+        #else
+        #    num_offspring = 0
+        #end
 
         tmp_clone = change_clone_size(clone, num_offspring)
         # prune any empty clones
