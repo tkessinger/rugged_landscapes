@@ -1,0 +1,205 @@
+\documentclass[10pt]{revtex4}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{mathtools}
+
+
+\begin{document}
+
+We are interested, briefly, in recapitulating some of the method of Ochs and Desai (2015) and seeing what can be extended to the case of ridge-valley competition.
+The basic model is to consider a fitness landscape on which there are two paths to some fitness maximum, with heigh $s$.
+One is a one-step valley of depth $\delta$.
+The other is a ``ridge" of $n$ steps of successively increasing fitness.
+Mutations along the valley and ridge occur at rates $\mu_v$ and $\mu_r$, respectively.
+Let's see if we can figure out which path a population is more likely to take.
+
+We'll open by recapitulating the Ochs-Desai model before figuring out what changes in ours.
+
+\section*{Small populations}
+
+In the Ochs-Desai model, the transition rates between states $i$ and $j$ in small populations are given by
+\begin{equation}
+r_{ij} = N\mu_{ij}\pi_{ij} = N\mu_{ij}\frac{1-e^{-2(s_j-s_i)}}{1-e^{-2N(s_j-s_i)}},
+\end{equation}
+where the second term is just an application of the diffusion approximation.
+The idea here is that states are weakly selected enough, and mutations rare enough, that transition rates are limited by the time it takes for a rare new mutation, that is destined for fixation, to arise.
+Let's say the wild type state is $1$, valley is $2$, peak is $3$, and simple sweep is $4$.
+The transition matrix $\textbf{P}$ looks like
+\begin{equation}
+\textbf{P} = 
+\begin{bmatrix}
+1-(r_{12} + r_{14}) & r_{12} & 0 & r_{14}  \\
+r_{21} & 1 - (r_{21} + r_{23}) & r_{23} & 0 \\
+0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 1
+\end{bmatrix}.
+\end{equation}
+This is already in the canonical form
+\begin{equation}
+\textbf{P} = 
+\begin{bmatrix}
+\textbf{Q} & \textbf{R} \\
+\textbf{0} & \textbf{I}
+\end{bmatrix},
+\end{equation}
+with $\textbf{Q}$ being the transition matrix between transient states and $\textbf{R}$ the transition matrix into the absorbing states.
+Obtaining
+\begin{equation}
+\textbf{B} = \textbf{N}\textbf{R}
+\end{equation}
+will give us our transition probabilities (the $i, j$ element of \textbf{B} is the absorption probability from state $i$ into state $j$, so we really just need the first row).
+Note that 
+\begin{equation}
+\textbf{N} = (\textbf{I} - \textbf{Q})^{-1} = 
+\begin{bmatrix}
+r_{12} + r_{14} & -r_{12}\\
+-r_{21} & r_{21} + r_{23}
+\end{bmatrix}^{-1} = 
+\frac{1}{(r_{12} + r_{14})(r_{21} + r_{23}) - r_{12}r_{21}}
+\begin{bmatrix}
+r_{23} + r_{21} & r_{12}\\
+r_{21} & r_{12} + r_{14}
+\end{bmatrix}.
+\end{equation}
+Thus (after simplifying the determinant),
+\begin{align}
+\textbf{B} & =
+\frac{1}{r_{12}r_{23} + r_{14}(r_{21}+r_{23})}
+\begin{bmatrix}
+r_{23} + r_{21} & r_{12}\\
+r_{21} & r_{12} + r_{14}
+\end{bmatrix}
+\begin{bmatrix}
+0 & r_{14} \\
+r_{23} & 0
+\end{bmatrix}
+\nonumber \\
+& =
+\frac{1}{r_{12}r_{23} + r_{14}(r_{21}+r_{23})}
+\begin{bmatrix}
+r_{12}r_{23} & r_{14}(r_{23}+r_{21}) \\
+(r_{12}+r_{14})r_{23} & r_{21}r_{14}
+\end{bmatrix}.
+\end{align}
+Note that summing the rows does indeed yield 1, and looking at the first term of the first row yields an expression identical to equation (3) in Ochs and Desai (2015): the probability of ending up in state $3$ starting from state $1$ or, equivalently, the probability of crossing the valley from the wild type.
+
+
+Let's see how well this scales to our model.
+Let's say the wild type is state $1$, the valley is state $2$, reaching the peak via the valley is state $3$, and the ridge states are $4$, $5$, and $6$ respectively ($3$ and $6$ are absorbing states and are actually the \emph{same} state, but of course we need to know how the population got there).
+Then the transition rate matrix $\textbf{P}$ looks like (after relabeling and rearranging terms so they are in canonical form)
+\begin{equation}
+\textbf{P} = 
+\begin{bmatrix}
+1-(r_{12} + r_{14}) & r_{12} & r_{14} & 0 & 0 & 0 \\
+r_{21} & 1 - (r_{21} + r_{23}) & 0 & 0 & r_{23} & 0 \\
+r_{41} & 0 & 1 - (r_{41} + r_{45}) & r_{45} & 0 & 0 \\
+0 & 0 & r_{54} & 1 - (r_{54} + r_{56}) & 0 & r_{56} \\
+0 & 0 & 0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 0 & 0 & 1
+
+\end{bmatrix}
+\end{equation}
+Recall that the canonical form is
+\begin{equation}
+\textbf{P} = 
+\begin{bmatrix}
+\textbf{Q} & \textbf{R} \\
+\textbf{0} & \textbf{I}
+\end{bmatrix}.
+\end{equation}
+As above, we need
+\begin{equation}
+\textbf{B} = \textbf{N}\textbf{R},
+\end{equation}
+with
+\begin{equation}
+\textbf{N} = (\textbf{I} - \textbf{Q})^{-1} = 
+\begin{bmatrix}
+r_{12} + r_{14} & -r_{12} & -r_{14} & 0 \\
+-r_{21} & r_{21} + r_{23} & 0 & 0 \\
+-r_{41} & 0 & r_{41} + r_{45} & -r_{45} \\
+0 & 0 & -r_{54} & r_{54} + r_{56}
+\end{bmatrix}^{-1}.
+\end{equation}
+Making the substitutions
+$a = r_{12}$,
+$b = r_{14}$,
+$c = r_{21}$,
+$e = r_{41}$,
+$f = r_{45}$,
+$g = r_{54}$,
+$p = r_{23}$,
+$q = r_{56}$
+(we have labeled $r_{23}$ and $r_{56}$ non-alphabetically because they lead to absorbing states) allows us to write
+\begin{align}
+\textbf{N} & = \frac{1}{bpfq + apfq + eapg + eapq + bcfq} \times \nonumber \\
+& \begin{bmatrix}
+(c+p)(fq+e(g+q)) & a(eq + eg + fq) & b(g+q)(c+p) & bf(c+p) \\
+c(fq + e(g+q)) & afq+eag+bfq+eaq & bc(g+q) & bcf \\
+e(c+p)(g+q) & ea(g+q) & (g+q)(bc+bp+ap) & f(bp+bc+ap) \\
+eg(c+p) & eag & g(bc+bp+ap) & bpf + apf + eap + bcf
+\end{bmatrix}.
+\end{align}
+The final expression will be much less ghastly than this horrible eldritch abomination from the ninth hell suggests, as
+\begin{equation}
+\textbf{R} = 
+\begin{bmatrix}
+0 & 0 \\
+p & 0 \\
+0 & 0 \\
+0 & q
+\end{bmatrix}
+\end{equation}
+is quite sparse.
+Moreover, all that is \emph{really} needed is the first line of $\textbf{B}$, which is
+\begin{align}
+\textbf{B}_{13} = \frac{ap(eq+eg+fq)}{bpfq+apfq+eapg+eapq+bcfq}, \\
+\textbf{B}_{16} = \frac{bfq(c+p)}{bpfq+apfq+eapg+eapq+bcfq}
+\end{align}
+(here relabeling the indices to correspond to the absorbing states).
+Note that these do indeed sum to $1$, as a sanity check.
+Unfortunately this too is not terribly helpful, so it behooves us to consider what simplifications can be made.
+Suppose we grant that mutations along the ``ridge" occur at the same rate, and the fitness increases are the same.
+This means that $r_{14} = r_{45} = r_{56}$, and equivalently $r_{41} = r_{54}$; or, using the above notation, $b = f = q$ and $e = g$.
+The above then simplifies to
+\begin{align}
+\textbf{B}_{13} = \frac{ap(e+b)^2}{ap(e+b)^2 + b^3(c+p)}, \\
+\textbf{B}_{16} = \frac{b^3(c+p)}{ap(e+b)^2 + b^3(c+p)},
+\end{align}
+which is perhaps slightly easier to interpret.
+It is interesting to note that $(e+b)$ essentially represents the flux out of the ridge states in either direction and $(c+p)$ represents the flux out of the valley state.
+We could also consider the case where the ``ridge" states have \emph{no} effect on fitness until the entire ridge is crossed: this is tantamount to stating $b = e = f = g$, with $q$ still different (we continue to assume constant mutation rates along the ridge).
+In that case we have
+\begin{align}
+\textbf{B}_{13} = \frac{apb(b+2q)}{b^2(pq+ap+cq)+2bapq}, \\
+\textbf{B}_{16} = \frac{b^2q(c+p)}{b^2(pq+ap+cq)+2bapq}.
+\end{align}
+As an even further sanity check, we could set the valley depth to zero and all the mutation rates to the same value, in which case $p = q$ and $a = b = c = e = g = f$.
+We should expect crossing the ``valley" (really just a shorter ridge) to unconditionally be more likely in that case.
+We have
+\begin{align}
+\textbf{B}_{13} = \frac{a^3p + 2a^2p^2}{2a^3p+3a^2p^2}, \\
+\textbf{B}_{16} = \frac{a^3p + a^2p^2}{2a^3p+3a^2p^2}.
+\end{align}
+It is not hard to see that $P_{\mathrm{valley}} > P_{\mathrm{ridge}}$ in this case, as expected, though it might be instructive to consider how this difference depends on $N$ and $\mu$.
+We have $a = N\mu(1/N) = 1/\mu$ and $p = N\mu \frac{1 - e^{-2s}}{1-e^{-2Ns}}$, which $\to 1/\mu$ in the $Ns \ll 1$ limit but $\to 2N\mu s$ in the $Ns \gg 1$ limit: so when $s$ is small enough to be negligible, $P_\mathrm{valley} = 3/5$, and when it's not, $P_\mathrm{valley} = \frac{1/\mu^3(2N\mu s) + 2(1/\mu^2)(2N\mu s)^2}{2(1/\mu^3)(2N\mu s) + 3(1/\mu^2)(2N\mu s)^2} = \frac{2Ns/\mu^2 + 2N^2s^2}{4Ns/\mu^2 + 3N^2s^2}$, which $\to 2/3$ as $\mu \to \infty$ but $\to 1/2$ as $\mu \to 0$ (this is suspicious: I must check this or at least reason my way through it, though the algebra seems sound).
+We could probably predict (without redoing the tedious algebra), at this point, that for a ridge of length $n$, a similar pattern should obtain: $P_\mathrm{valley} \to (n-2)/n$ in this model, in the low $Ns$ limit.
+
+In the previous model, in which the ridge mutations still do nothing until the whole ridge is crossed but the valley depth is nonzero, it certainly seems like we will obtain the same result as Ochs and Desai: increasing $N$ decreases $r_{12}$ (and increases $r_{21}$) and therefore favors traversing the ridge over crossing the valley.
+However, an additional model to consider is one where the valley is effectively neutral (hence $a = c$, assuming that $\mu_{12} = \mu_{21} = \mu_v$, with ``$v$" meaning ``valley") but the ridge mutations successively increase fitness.
+In that case,
+\begin{align}
+\textbf{B}_{13} = \frac{ap(e+b)^2}{ap(e+b)^2 + b^3(a+p)}, \\
+\textbf{B}_{16} = \frac{b^3(a+p)}{ap(e+b)^2 + b^3(a+p)}.
+\end{align}
+At some point it will be useful to go back and consider what happens as the number of mutations $n$ along the ridge increases, perhaps while keeping the product $n\mu_r$ (with $\mu_r$ the ridge mutation rate) or $ns$ constant: clearly, as $n$ grows but other factors remain the same, the ridge basically becomes completely neutral and crossing the valley seems prima facie more likely, though it is not obvious how much more likely.
+For now, we will proceed with the current case ($n = 3$) and assume that all ridge mutations, forward and back, have the same rate $\mu_r$.
+In the low $s$ limit, we have $a = 1/\mu_v$, $b \to 1/\mu_r$ in the low $s$ limit but $\to 2N\mu_r s/n$ in the high $s$ limit, $e \to 1/\mu_r = b$ in the low $s$ limit but blowing up in the high $s$ limit, and $p \to 1/\mu_v$ in the low $s$ limit but $\to 2N\mu_v s$ in the high $s$ limit.
+So for low $s$, we have
+\begin{equation}
+P_{\mathrm{valley}} \approx \frac{1/\mu_v^2(2/\mu_r)^2}{1/\mu_v^2(2/\mu_r)^2 + 1/\mu_r^3(2/\mu_v)} = \frac{4/\mu_v^2\mu_r^2}{4/\mu_v^2\mu_r^2 + 2/\mu_v\mu_r^3},
+\end{equation}
+which has a slightly different form from the above, oddly enough.
+\end{document}

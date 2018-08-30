@@ -19,6 +19,7 @@ export simple_forward_population, simple_population, ochs_desai_population
 export fitness_ridge_population, hoc_population
 export parse_history
 export Population, OchsDesaiParams
+export exists_path
 
 using Distributions, Combinatorics
 
@@ -201,7 +202,7 @@ end
 
 
 
-function hoc_fitnesses(numloci::Int64, numstates::Int64, steepness::Float64; α::Float64=0.0, first_constrained::Bool=true, final_highest::Bool=true)
+function hoc_fitnesses(numloci::Int64, numstates::Int64, steepness::Float64=1.0; α::Float64=0.0, first_constrained::Bool=true, final_highest::Bool=true)
     # generates random fitness values for the "house of cards" landscape model
     # α allows the "alpha-constrained" house of cards to be used,
     # where the first fitness is set to α
@@ -223,6 +224,68 @@ function hoc_fitnesses(numloci::Int64, numstates::Int64, steepness::Float64; α:
     return fitnesses
 end
 
+function adjacent_states(numloci::Int64, numstates::Int64)
+    adj_states = Array{Int64,1}[]
+    numgenotypes = numstates^numloci
+    genotypes = Array{Int64,1}[]
+    for x in 1:numgenotypes;
+        push!(genotypes, genotype_mapping(x, numloci, numstates))
+    end
+    for x in 1:numgenotypes;
+        cur_accessible = Int64[]
+        for y in 1:numgenotypes;
+            if hamming_distance(genotypes[x], genotypes[y]) == 1
+                push!(cur_accessible, y)
+            end
+        end
+        push!(adj_states, cur_accessible)
+    end
+    return adj_states
+end
+
+function try_neighbors(numloci::Int64, numstates::Int64, fitnesses::Array{Float64,1},
+    cur_path::Array{Int64,1}=Int64[1], adj_states::Array{Array{Int64,1}} = Array{Int64,1}[])
+    # recursive function for seeing if any accessible states are available
+    #println("attempting path $cur_path")
+
+    numgenotypes = length(fitnesses)
+    cur_state = cur_path[end]
+    cur_genotype = genotype_mapping(cur_state,numloci,numstates)
+    successful_paths = Array{Int64,1}[]
+
+    if length(adj_states) == 0
+        adj_states = adjacent_states(numloci, numstates)
+    end
+
+#    for x in 1:numgenotypes;
+    for x in adj_states[cur_state];
+        #println("$cur_genotype, $(genotype_mapping(x,numloci,numstates)), $(hamming_distance(cur_genotype, genotype_mapping(x,numloci,numstates)))")
+#        if hamming_distance(cur_genotype, genotype_mapping(x,numloci,numstates)) == 1
+            if fitnesses[x] == maximum(fitnesses)
+                push!(successful_paths, vcat(cur_path, x))
+                #println("$(vcat(cur_path, x)) is a permissible path")
+
+            elseif !(x in cur_path) && fitnesses[x] > fitnesses[cur_state]
+                #push!(successful_paths, try_neighbors(numloci, numstates, fitnesses, vcat(cur_path, x)))
+                successful_paths = vcat(successful_paths, try_neighbors(numloci, numstates, fitnesses, vcat(cur_path, x), adj_states))
+            end
+#        end
+    end
+    return successful_paths
+
+end
+
+function exists_path(numloci::Int64, numstates::Int64, fitnesses::Array{Float64,1})
+    # traverses all paths on a fitness landscape and determines if any are "evolutionarily accessible"
+    # this means there must be a single-step mutational pathway to the max fitness state
+    paths = try_neighbors(numloci, numstates, fitnesses)
+    if length(paths) > 0
+        return true
+    else
+        return false
+    end
+
+end
 
 function rmf_fitnesses(numloci::Int64, numstates::Int64, θ::Float64, steepness::Float64)
 
