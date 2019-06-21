@@ -6,7 +6,7 @@
 ## Simulates a house-of-cards population until fixation.
 ## Parses the population's history and records it.
 
-using Distributions, PopSim, ArgParse, JLD
+using Distributions, PopSim, ArgParse, JLD2
 
 # K = 100000 # carrying capacity
 # numloci = 3
@@ -28,13 +28,13 @@ function main(args)
             default = "test"
         "--K"
             arg_type=Float64
-            default=1e5
+            default=1e2
         "--u"
             arg_type=Float64
-            default=1e-5
+            default=1e-3
         "--steepness"
             arg_type=Float64
-            default=1e-2
+            default=1e-3
         "--numloci"
             arg_type=Int64
             default=3
@@ -43,7 +43,7 @@ function main(args)
             default=2
         "--numtrials"
             arg_type=Int64
-            default = 100
+            default = 10
         "--file"
             arg_type=AbstractString
             default = "test"
@@ -57,13 +57,13 @@ function main(args)
 
     println("running $numtrials simulations:")
 
-    file = ismatch(r"\.jld", outfile) ? outfile : outfile*".jld"
+    file = occursin(r"\.jld", outfile) ? outfile : outfile*".jld"
 
     parsed_hists = []
     valley_percentage = []
     landscapes = []
 
-    for trial in range(1,numtrials);
+    for trial in 1:numtrials
         println("initiating trial $trial")
         pop = hoc_population(K, numloci, numstates, μ, steepness)
         while !exists_path(numloci, numstates, pop.landscape.fitnesses);
@@ -77,10 +77,10 @@ function main(args)
         push!(valley_percentage, valleys)
         push!(landscapes, pop.landscape.fitnesses)
 
-        save("output/hoc_sims/$file", "hists", parsed_hists, "valleys", valley_percentage, "landscapes", landscapes)
+        #save("output/hoc_sims/$file", "hists", parsed_hists, "valleys", valley_percentage, "landscapes", landscapes)
 
     end
-    save("output/hoc_sims/$file", "hists", parsed_hists, "valleys", valley_percentage, "landscapes", landscapes)
+    #save("output/hoc_sims/$file", "hists", parsed_hists, "valleys", valley_percentage, "landscapes", landscapes)
 end
 
 main(ARGS)

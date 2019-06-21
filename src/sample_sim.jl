@@ -6,7 +6,7 @@
 ## Basic implementation of pop_sim
 
 # tell Julia where the module is located
-using Distributions, PopSim
+using Distributions, PopSim, Revise
 
 K = 10000 # carrying capacity
 fitnesses = [0, -0.01, 0.01, 0.1]

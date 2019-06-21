@@ -74,7 +74,7 @@ struct Landscape
     # this avoids the need to repeatedly compute the sum
 
     # constructor
-    Landscape(fitnesses,μmatrix) = new(fitnesses, μmatrix, sum(μmatrix,2))
+    Landscape(fitnesses,μmatrix) = new(fitnesses, μmatrix, sum(μmatrix, dims=2))
 end
 
 struct OchsDesaiParams
@@ -190,11 +190,12 @@ end
 
 
 
-function hoc_population(K::Int64, numloci::Int64, numstates::Int64, μ::Float64, steepness::Float64)
+function hoc_population(K::Int64, numloci::Int64,
+    numstates::Int64, μ::Float64, steepness::Float64)
     # constructs an α-HoC population
 
     fitnesses = hoc_fitnesses(numloci, numstates, steepness)
-    μmatrix = hypercube_mutations(fitnesses, numloci, numstates,μ)
+    μmatrix = hypercube_mutations(fitnesses, numloci, numstates, μ)
     landscape = Landscape(fitnesses,μmatrix)
     population = Population(K,landscape)
     return population
@@ -336,7 +337,7 @@ function hypercube_mutations(fitnesses::Array{Float64}, numloci::Int64, numstate
 
     if absorbing
         maxfit = maximum(fitnesses)
-        maxlocs = find(x->x==maxfit,fitnesses)
+        maxlocs = filter(x->x==maxfit,fitnesses)
     end
 
     # fill in the mutation matrix
@@ -417,12 +418,16 @@ function ochs_desai_population(K::Int64, μlist::Array{Float64,1}, slist::Array{
     # 3 v -- rate from valley to complex adaptation
     # genotype 2 is the simple adaptation and 4 is the complex one
     fitnesses = vcat(Float64[0.0], slist)
-    μmatrix = Float64[0 μlist[1] μlist[2] μlist[2]*μlist[3]; 0 0 0 0; 0 0 0 μlist[3]; 0 0 0 0]
+    μmatrix = Float64[
+        0 μlist[1] μlist[2] μlist[2]*μlist[3];
+        0 0 0 0;
+        0 0 0 μlist[3];
+        0 0 0 0
+        ]
 
     landscape = Landscape(fitnesses,μmatrix)
 
     return Population(K, landscape)
-
 end
 
 function simple_forward_population(K::Int64, μrate::Float64)

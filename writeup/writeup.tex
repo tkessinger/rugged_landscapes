@@ -1,17 +1,20 @@
-\documentclass[10pt]{revtex4}
+\documentclass[11pt]{revtex4}
 
-\usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{mathtools}
+\usepackage{xcolor}
+\usepackage{charter}
 
+%\pagecolor{black}
+%\color{white}
 
 \begin{document}
 
 We are interested, briefly, in recapitulating some of the method of Ochs and Desai (2015) and seeing what can be extended to the case of ridge-valley competition.
-The basic model is to consider a fitness landscape on which there are two paths to some fitness maximum, with heigh $s$.
+The basic model is to consider a fitness landscape on which there are two paths to some fitness maximum, with height $s$.
 One is a one-step valley of depth $\delta$.
-The other is a ``ridge" of $n$ steps of successively increasing fitness.
+The other is a ``ridge" of $n$ steps of either successively increasing fitness or \emph{no} fitness effect until all steps have been crossed.
 Mutations along the valley and ridge occur at rates $\mu_v$ and $\mu_r$, respectively.
 Let's see if we can figure out which path a population is more likely to take.
 
@@ -28,7 +31,7 @@ The idea here is that states are weakly selected enough, and mutations rare enou
 Let's say the wild type state is $1$, valley is $2$, peak is $3$, and simple sweep is $4$.
 The transition matrix $\textbf{P}$ looks like
 \begin{equation}
-\textbf{P} = 
+\textbf{P} =
 \begin{bmatrix}
 1-(r_{12} + r_{14}) & r_{12} & 0 & r_{14}  \\
 r_{21} & 1 - (r_{21} + r_{23}) & r_{23} & 0 \\
@@ -38,7 +41,7 @@ r_{21} & 1 - (r_{21} + r_{23}) & r_{23} & 0 \\
 \end{equation}
 This is already in the canonical form
 \begin{equation}
-\textbf{P} = 
+\textbf{P} =
 \begin{bmatrix}
 \textbf{Q} & \textbf{R} \\
 \textbf{0} & \textbf{I}
@@ -50,13 +53,13 @@ Obtaining
 \textbf{B} = \textbf{N}\textbf{R}
 \end{equation}
 will give us our transition probabilities (the $i, j$ element of \textbf{B} is the absorption probability from state $i$ into state $j$, so we really just need the first row).
-Note that 
+Note that
 \begin{equation}
-\textbf{N} = (\textbf{I} - \textbf{Q})^{-1} = 
+\textbf{N} = (\textbf{I} - \textbf{Q})^{-1} =
 \begin{bmatrix}
 r_{12} + r_{14} & -r_{12}\\
 -r_{21} & r_{21} + r_{23}
-\end{bmatrix}^{-1} = 
+\end{bmatrix}^{-1} =
 \frac{1}{(r_{12} + r_{14})(r_{21} + r_{23}) - r_{12}r_{21}}
 \begin{bmatrix}
 r_{23} + r_{21} & r_{12}\\
@@ -90,7 +93,7 @@ Let's see how well this scales to our model.
 Let's say the wild type is state $1$, the valley is state $2$, reaching the peak via the valley is state $3$, and the ridge states are $4$, $5$, and $6$ respectively ($3$ and $6$ are absorbing states and are actually the \emph{same} state, but of course we need to know how the population got there).
 Then the transition rate matrix $\textbf{P}$ looks like (after relabeling and rearranging terms so they are in canonical form)
 \begin{equation}
-\textbf{P} = 
+\textbf{P} =
 \begin{bmatrix}
 1-(r_{12} + r_{14}) & r_{12} & r_{14} & 0 & 0 & 0 \\
 r_{21} & 1 - (r_{21} + r_{23}) & 0 & 0 & r_{23} & 0 \\
@@ -103,7 +106,7 @@ r_{41} & 0 & 1 - (r_{41} + r_{45}) & r_{45} & 0 & 0 \\
 \end{equation}
 Recall that the canonical form is
 \begin{equation}
-\textbf{P} = 
+\textbf{P} =
 \begin{bmatrix}
 \textbf{Q} & \textbf{R} \\
 \textbf{0} & \textbf{I}
@@ -115,7 +118,7 @@ As above, we need
 \end{equation}
 with
 \begin{equation}
-\textbf{N} = (\textbf{I} - \textbf{Q})^{-1} = 
+\textbf{N} = (\textbf{I} - \textbf{Q})^{-1} =
 \begin{bmatrix}
 r_{12} + r_{14} & -r_{12} & -r_{14} & 0 \\
 -r_{21} & r_{21} + r_{23} & 0 & 0 \\
@@ -144,7 +147,7 @@ eg(c+p) & eag & g(bc+bp+ap) & bpf + apf + eap + bcf
 \end{align}
 The final expression will be much less ghastly than this horrible eldritch abomination from the ninth hell suggests, as
 \begin{equation}
-\textbf{R} = 
+\textbf{R} =
 \begin{bmatrix}
 0 & 0 \\
 p & 0 \\
